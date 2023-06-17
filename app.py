@@ -32,6 +32,7 @@ app_ui = ui.page_fluid(
             window_title="Replace pronouns in text",
         ),
         ui.layout_sidebar(
+            # The left side will have the inputs for pronouns and names
             sidebar=ui.panel_sidebar(
                 ui.input_text("pronoun_subjective", "Subjective", placeholder="they"),
                 ui.input_text("pronoun_objective", "Objective", placeholder="them"),
@@ -55,6 +56,8 @@ app_ui = ui.page_fluid(
                 width=3,
             ),
             main=ui.panel_main(
+                # the right side has the text to replace, a button to
+                # replace the text, and the output text when complete
                 ui.input_text_area(
                     "replace_text",
                     label="Enter text to replace:",
@@ -82,6 +85,7 @@ def server(input, output, session):
     @render.text
     @reactive.event(input.replace_button)
     def output_text():
+        # function runs automatically when replace button clicked
         pronoun_subjective: str = input.pronoun_subjective()
         pronoun_objective: str = input.pronoun_objective()
         pronoun_possessive_determiner: str = input.pronoun_possessive_determiner()
@@ -90,8 +94,12 @@ def server(input, output, session):
         old_char_name: str = input.replace_char_name()
         new_char_name: str = input.new_char_name()
         replace_text: str = input.replace_text()
+
+        # get the token count of the input text
         enc = tiktoken.encoding_for_model(GPT_MODEL)
         tokens: int = len(enc.encode(replace_text))
+        # the prompt is the instructions for the GPT engine,
+        # plus the text to replace
         prompt = f"""
         In the following text, replace every instance of {old_char_name} with {new_char_name}.
         For each personal pronoun in the text, determine from context if its antecedent is {old_char_name} or not.
@@ -113,16 +121,21 @@ def server(input, output, session):
 
         completion = openai.ChatCompletion.create(
             model=GPT_MODEL,
+            # send the prompt to the GPT chat engine as a user message
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
-            max_tokens=tokens * 2 + 200,
+            # max tokens is twice the number of tokens in the input text
+            # assuming the output text being approximately the same length
+            # plus a buffer of 400 tokens for the prompt and variance
+            max_tokens=tokens * 2 + 400,
         )
         response_html: str = completion.choices[0].message["content"]  # type: ignore
+        # change newline characters to html line breaks
         response_html: str = response_html.replace("\n\n", "<br><br>")
+        # enclose the response in a paragraph tag
         response_html = f"<p>{response_html}</p>"
         logger.debug(f"{response_html=}")
         return response_html
-        # return completion.choices[0].message["content"].replace("\\n", "\n")  # type: ignore
 
 
 logger.info("Starting app")
