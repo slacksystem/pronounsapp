@@ -117,7 +117,9 @@ def server(input, output, session):
         ```
         {replace_text}
         ```
-        """
+        """.replace(
+            "        ", ""
+        )
 
         completion = openai.ChatCompletion.create(
             model=GPT_MODEL,
